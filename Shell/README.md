@@ -1,6 +1,6 @@
-# MRI_Diffusion
+# Script dwiprep_no_ses.sh
 
-Pour l’utiliser: 
+### Utilisation 
 
 -> 1. éditez le script dans la rubrique: 
 
