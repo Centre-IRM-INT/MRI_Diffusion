@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # script to preprocess diffusion weighted images
-# call bash script using : >> bash dwiprep_cuda_newden_no_ses.sh
+# call bash script using : >> bash dwiprep_no_ses.sh
 # if ni cuda, comment the paragraph dedicated to cuda
 
 # script written originally by Lucile Brun, adapted by Julien Sein (julien.sein@univ-amu.fr)
@@ -9,17 +9,21 @@
 #version of April 29th 2021
 
 ####### To be edited by user #####
-study=Aging
-base_dir=/home/seinj/mygpdata/MRI_BIDS_DATABANK/${study}
+##################################
+
+study='Aging'
+base_dir=/home/seinj/mygpdata/MRI_BIDS_DATABANK/${study} # path to the BIDS folder of your study
+base_output_dir=dwi_prep_newden # name of the folder that will be created in derivatives
+# where the preproc data will be stored
 #list_sub=$(ls -d $base_dir/sub*) # to select all subjects from the BIDS folder.
 list_sub='01' #ex: '01 02 03'
 acq= # add something if this flag is present in the scan name: ex: acq='_acq-1mm'
 smooth=1 ## value of smoothing kernel used with fslmaths in the smoothing part at the end of the script.
+bias_method='fsl' # 'fsl' or 'ants' (ants recommended but need to have ants installed)
 
-###### end of edition #######
+#################################
+###### end of edition ###########
 
-
-base_output_dir=dwi_prep_newden
 
 for subi in $list_sub
 do
@@ -367,7 +371,7 @@ dwi2mask $out_dir/topup/topup_eddy.nii.gz $out_dir/topup/eddy_brain_mask_mrtrix.
 
 ## Bias correction with mrtrix. If ants is installed, use ('ants') for correction (recommended), if not use FSL-fast ('fsl')
 
-dwibiascorrect fsl $out_dir/topup/topup_eddy.nii.gz $out_dir/topup/topup_eddy_unbiased.nii.gz -fslgrad ${out_dir}/topup/topup_bvec ${out_dir}/topup/topup_bval -bias ${out_dir}/topup/bias.nii.gz -mask $out_dir/topup/eddy_brain_mask_mrtrix.nii.gz
+dwibiascorrect $bias_method $out_dir/topup/topup_eddy.nii.gz $out_dir/topup/topup_eddy_unbiased.nii.gz -fslgrad ${out_dir}/topup/topup_bvec ${out_dir}/topup/topup_bval -bias ${out_dir}/topup/bias.nii.gz -mask $out_dir/topup/eddy_brain_mask_mrtrix.nii.gz
 
 ## smooth with gaussian kernel of $sigma ( FSL-fslmaths)
 
