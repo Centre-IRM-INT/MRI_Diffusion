@@ -1,4 +1,4 @@
-# Script dwiprep_no_ses.sh
+# dwiprep_no_ses.sh
 
 ### Installation
 
