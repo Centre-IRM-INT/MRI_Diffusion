@@ -32,7 +32,7 @@ Le script utilise un fichier : ***slspec.txt*** (ordre d’acquisition des coupe
 Les étapes de pré-traitement placées dans mon script:
 
 - denoise
-- debias
+- deGibbs
 - correction topup/eddy + eddyQC
 - création du masque du cerveau
 - correction du biais
