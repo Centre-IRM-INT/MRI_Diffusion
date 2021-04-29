@@ -40,7 +40,8 @@ in_dir=${base_dir}/${sub}/dwi
 t1_dir=${base_dir}/${sub}/anat
 out_dir=${base_dir}/derivatives/$base_output_dir/${sub}
 
-mkdir -p $out_dir
+mkdir -p $out_dir/topup
+cp slspec.txt $out_dir/topup/.
 
 AP=${in_dir}/${sub}${acq}_dir-AP_dwi.nii.gz
 PA=${in_dir}/${sub}${acq}_dir-PA_dwi.nii.gz
@@ -333,18 +334,17 @@ fi
 
 ### calculate the file slspec.txt using matlab. Comment if you calculate this file outside of the script:
 
-APjson=${AP/nii.gz/json}
-APjson_short=$(echo $APjson | sed 's:.*/::')
-#matlab -nosplash -nodisplay -r "cd ~/Documents/MATLAB/m/eddy;create_slspec("\'$APjson\',\'$out_dir/topup/${APjson_short/dwi.json/slspec.txt}\'")" > /dev/null
-matlab -nosplash -nodisplay -r "cd ~/Documents/MATLAB/m/eddy;create_slspec("\'$APjson\',\'$out_dir/topup/${APjson_short/dwi.json/slspec.txt}\'")" > /dev/null
+#APjson=${AP/nii.gz/json}
+#APjson_short=$(echo $APjson | sed 's:.*/::')
+#matlab -nosplash -nodisplay -r "cd ~/Documents/MATLAB/m/eddy;create_slspec("\'$APjson\',\'$out_dir/topup/slspec.txt\'")" > /dev/null
 
 ### for user with no acces to eddy_cuda:
 
-#eddy_openmp --imain=$out_dir/topup/up_down_data.nii.gz --mask=$out_dir/topup/topup_b0_mean_brain_mask.nii.gz --acqp=$out_dir/topup/acq_parameters --index=$out_dir/topup/acq_index --bvecs=$out_dir/topup/topup_bvec --bvals=$out_dir/topup/topup_bval --topup=$out_dir/topup/topup --out=$out_dir/topup/topup_eddy --flm=quadratic --slm=none --fwhm=0,0,0,0,0 --niter=5 --fep --interp=spline --resamp=$resamp --nvoxhp=1000 --ff=10 --dont_peas --data_is_shelled --residuals  --cnr_maps --repol --ol_type=gw --slspec="$out_dir/topup/${APjson_short/dwi.json/slspec.txt}" --estimate_move_by_susceptibility  -v
+eddy_openmp --imain=$out_dir/topup/up_down_data.nii.gz --mask=$out_dir/topup/topup_b0_mean_brain_mask.nii.gz --acqp=$out_dir/topup/acq_parameters --index=$out_dir/topup/acq_index --bvecs=$out_dir/topup/topup_bvec --bvals=$out_dir/topup/topup_bval --topup=$out_dir/topup/topup --out=$out_dir/topup/topup_eddy --flm=quadratic --slm=none --fwhm=0,0,0,0,0 --niter=5 --fep --interp=spline --resamp=$resamp --nvoxhp=1000 --ff=10 --dont_peas --data_is_shelled --residuals  --cnr_maps --repol --ol_type=gw --slspec=$out_dir/topup/slspec.txt --estimate_move_by_susceptibility  -v
 
 ### eddy_cuda with slice-2-volume registration and group-wise outlier replacement
 
-eddy_cuda --imain=$out_dir/topup/up_down_data.nii.gz --mask=$out_dir/topup/topup_b0_mean_brain_mask.nii.gz --acqp=$out_dir/topup/acq_parameters --index=$out_dir/topup/acq_index --bvecs=$out_dir/topup/topup_bvec --bvals=$out_dir/topup/topup_bval --topup=$out_dir/topup/topup --out=$out_dir/topup/topup_eddy --flm=quadratic --slm=none --fwhm=0,0,0,0,0 --niter=5 --fep --interp=spline --resamp=$resamp --nvoxhp=1000 --ff=10 --dont_peas --data_is_shelled --residuals  --cnr_maps --repol --ol_type=gw  --mporder=4 --s2v_niter=5 --s2v_lambda=1 --s2v_interp=trilinear --slspec="$out_dir/topup/${APjson_short/dwi.json/slspec.txt}" --estimate_move_by_susceptibility  -v
+#eddy_cuda --imain=$out_dir/topup/up_down_data.nii.gz --mask=$out_dir/topup/topup_b0_mean_brain_mask.nii.gz --acqp=$out_dir/topup/acq_parameters --index=$out_dir/topup/acq_index --bvecs=$out_dir/topup/topup_bvec --bvals=$out_dir/topup/topup_bval --topup=$out_dir/topup/topup --out=$out_dir/topup/topup_eddy --flm=quadratic --slm=none --fwhm=0,0,0,0,0 --niter=5 --fep --interp=spline --resamp=$resamp --nvoxhp=1000 --ff=10 --dont_peas --data_is_shelled --residuals  --cnr_maps --repol --ol_type=gw  --mporder=4 --s2v_niter=5 --s2v_lambda=1 --s2v_interp=trilinear --slspec=$out_dir/topup/slspec.txt --estimate_move_by_susceptibility  -v
 
 
 echo "Correct for negative values"
