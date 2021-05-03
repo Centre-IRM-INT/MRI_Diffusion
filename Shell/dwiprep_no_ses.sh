@@ -300,23 +300,28 @@ fi
 
 ####################################################################
 
-# Correct for EVEN number of slices to use b02b0.cnf
-dimz=`fslval $out_dir/topup/up_down_b0.nii.gz dim3`
-mboff=0 # by default we assume even number of slices and no removal
-if [ `expr $dimz % 2` -eq 1 ]; then
-    echo "Remove one slice from data to get even number of slices"
-    mboff=-1 #removal from the bottom slice by fslroi below
-    fslroi $out_dir/topup/up_down_b0.nii.gz $out_dir/topup/up_down_b0.nii.gz 0 -1 0 -1 1 -1
-    fslroi $out_dir/topup/up_down_data.nii.gz $out_dir/topup/up_down_data.nii.gz 0 -1 0 -1 1 -1
-    fslroi $out_dir/split_PA_volumes/vol_0000.nii.gz $out_dir/topup/up_b0.nii.gz 0 -1 0 -1 1 -1
-    fslroi $out_dir/split_PA_volumes/vol_0000.nii.gz $out_dir/topup/down_b0.nii.gz 0 -1 0 -1 1 -1
-fi
+# OLD: Correct for EVEN number of slices to use b02b0.cnf
+#dimz=`fslval $out_dir/topup/up_down_b0.nii.gz dim3`
+#mboff=0 # by default we assume even number of slices and no removal
+#if [ `expr $dimz % 2` -eq 1 ]; then
+#    echo "Remove one slice from data to get even number of slices"
+#    mboff=-1 #removal from the bottom slice by fslroi below
+#    fslroi $out_dir/topup/up_down_b0.nii.gz $out_dir/topup/up_down_b0.nii.gz 0 -1 0 -1 1 -1
+#    fslroi $out_dir/topup/up_down_data.nii.gz $out_dir/topup/up_down_data.nii.gz 0 -1 0 -1 1 -1
+#    fslroi $out_dir/split_PA_volumes/vol_0000.nii.gz $out_dir/topup/up_b0.nii.gz 0 -1 0 -1 1 -1
+#    fslroi $out_dir/split_PA_volumes/vol_0000.nii.gz $out_dir/topup/down_b0.nii.gz 0 -1 0 -1 1 -1
+#fi
     
 ####################################################################
 
 echo "Estimation of the susceptibility off-resonance field..."
-topup --imain="${out_dir}/topup/up_down_b0.nii.gz" --datain="${out_dir}/topup/acq_parameters" --config=b02b0.cnf  --out="${out_dir}/topup/topup" --iout="${out_dir}/topup/up_down_b0_unwarped.nii.gz" --fout="${out_dir}/topup/topup_fieldmap" -v
-
+if [ `expr $dimz % 2` -eq 1 ]; then
+     echo "odd number of slices: run topup with specific config file"
+     topup --imain="${out_dir}/topup/up_down_b0.nii.gz" --datain="${out_dir}/topup/acq_parameters" --config=b02b0_oddslices.cnf  --out="${out_dir}/topup/topup" --iout="${out_dir}/topup/up_down_b0_unwarped.nii.gz" --fout="${out_dir}/topup/topup_fieldmap" -v
+else
+    echo "even number of slices: run topup with standard config file"
+    topup --imain="${out_dir}/topup/up_down_b0.nii.gz" --datain="${out_dir}/topup/acq_parameters" --config=b02b0.cnf  --out="${out_dir}/topup/topup" --iout="${out_dir}/topup/up_down_b0_unwarped.nii.gz" --fout="${out_dir}/topup/topup_fieldmap" -v
+fi
 fslmaths $out_dir/topup/up_down_b0_unwarped.nii.gz -Tmean $out_dir/topup/topup_b0_mean.nii.gz
 
 bet $out_dir/topup/topup_b0_mean.nii.gz $out_dir/topup/topup_b0_mean_brain.nii.gz -m -f 0.3
