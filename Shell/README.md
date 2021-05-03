@@ -2,7 +2,8 @@
 
 ### Installation
 
-Au niveau des logiciels, il faut avoir MRTRIX et FSL, et en bonus ANTS pour utiliser N4 pour la correction de biais au lieu de FSL-FAST, c’est ce que recommande mrtrix. Mais comme sur le serveur de cerimed il n’y a pas ants j’ai utilisé FSL-FAST dans mon script. Il suffit de remplacer « fsl »  par « ants »  dans les paramètres utilisateurs en début de script.
+Au niveau des logiciels, il faut avoir **MRTRIX** et **FSL**, et en bonus **ANTS** pour utiliser N4 pour la correction de biais au lieu de FSL-FAST, c’est ce que recommande mrtrix. Mais comme sur le serveur de cerimed il n’y a pas ants j’ai utilisé FSL-FAST dans mon script. Il suffit de remplacer « fsl »  par « ants »  dans les paramètres utilisateurs en début de script.
+Pour calculer le fichier slspec.txt, j'ai utilisé le script **MATLAB** utilisé par FSL (create_slspec.m). Idéalement il faut lancer le script pour chaque sujet mais si tous les sujets du même projet ont les même paramètre d'acquisition on peut calculer un fichier slspec.txt par projet.
 
 ### Utilisation 
 
@@ -31,10 +32,10 @@ Le script utilise un fichier : ***slspec.txt*** (ordre d’acquisition des coupe
 
 Les étapes de pré-traitement placées dans mon script:
 
-- denoise
-- deGibbs
-- correction topup/eddy + eddyQC
-- création du masque du cerveau
-- correction du biais
-- smoothing
+- denoise (*mrtrix dwidenoise*)
+- deGibbs (*mrtrix mrdegibbs*)
+- correction topup/eddy + eddyQC (*FSL topup + eddy\_openmp (ou \_cuda si GPU) + eddy_quad*)
+- création du masque du cerveau (*FSL bet, à comparer avec mrtrix dwi2mask*)
+- correction du biais( *mrtrix dwibiascorrect, idealement utiliser avec l'agorithme 'ants'*)  
+- smoothing (*FSL fslmaths*)
 
