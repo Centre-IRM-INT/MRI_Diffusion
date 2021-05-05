@@ -114,7 +114,7 @@ echo "tensor fitting"
 dtifit -k "${out_dir}/AP_rts_RAS_den_unr.nii.gz" -o "${out_dir}/test_gradorient/dti" -m "${out_dir}/test_gradorient/AP_rts_RAS_den_unr_b0_brain_mask.nii.gz" -r "${out_dir}/AP.bvec" -b "${out_dir}/AP.bval" -V
 #fsleyes ${out_dir}/test_gradorient/dti_FA.nii.gz  ${out_dir}/test_gradorient/dti_V1.nii.gz
 
-echo "reorient bvecs"
+echo "if needed, reorient bvecs"
 if [ -e ${out_dir}/AP.bvec ] ; then
 rm ${out_dir}/AP.bvec
 fi
@@ -131,9 +131,9 @@ Z=$(echo $Zs | cut -d " " -f "$i")
 X=$(tr -dc '[[:print:]]' <<< "$X")
 Y=$(tr -dc '[[:print:]]' <<< "$Y")
 Z=$(tr -dc '[[:print:]]' <<< "$Z")
-rX=$(echo "-1 * $X" | bc -l | sed 's/^\./0./' | sed 's/^-\./-0./')
-rY=$(echo "-1 * $Y" | bc -l | sed 's/^\./0./' | sed 's/^-\./-0./')
-rZ=$(echo "-1 * $Z" | bc -l | sed 's/^\./0./' | sed 's/^-\./-0./')
+rX=$(echo "-1 * $X" | bc -l | sed 's/^\./0./' | sed 's/^-\./-0./') #example were x is flipped
+rY=$(echo " 1 * $Y" | bc -l | sed 's/^\./0./' | sed 's/^-\./-0./')
+rZ=$(echo " 1 * $Z" | bc -l | sed 's/^\./0./' | sed 's/^-\./-0./')
 rX=$(printf "%1.7f" $rX)
 rY=$(printf "%1.7f" $rY)
 rZ=$(printf "%1.7f" $rZ)
