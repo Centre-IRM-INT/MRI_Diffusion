@@ -181,17 +181,24 @@ bvec=$out_dir/PA.bvec
 
 ####################################################################
 
-echo "Extract first blip-up and blip-down b0 volumes"
+echo "Extract blip-up and blip-down b0 volumes"
+echo "Motion correct  and average blip-up and blip-down b0 volumes"
 echo "And create acquisition parameters and corresponding index files"
 
 echo "- blip-up phase encoding"
-fslroi ${out_dir}/AP_rts_RAS_den_unr.nii.gz $out_dir/topup/up_b0.nii.gz 0 1
+#fslroi ${out_dir}/PA_rts_RAS_den_unr.nii.gz $out_dir/topup/up_b0.nii.gz 0 1
+dwiextract $out_dir/PA_rts_RAS_den_unr.nii.gz $out_dir/topup/up_allb0.nii.gz -bzero -fslgrad ${out_dir}/PA.bvec ${out_dir}/PA.bval
+mcflirt -in $out_dir/topup/up_allb0.nii.gz -out $out_dir/topup/mc_up_allb0.nii.gz -refvol 0
+fslmaths $out_dir/topup/mc_up_allb0.nii.gz -Tmean $out_dir/topup/up_b0.nii.gz
 echo "0 1 0 $readout_time" >> $out_dir/topup/acq_parameters
 n_vol_up=$(cat $PA_bval | wc -w)
 for i in $( seq 1 "$n_vol_up"); do echo '2'>> $out_dir/topup/acq_index_up; done
 
 echo "- blip-down phase encoding"
-fslroi ${out_dir}/PA_rts_RAS_den_unr.nii.gz $out_dir/topup/down_b0.nii.gz 0 1
+#fslroi ${out_dir}/AP_rts_RAS_den_unr.nii.gz $out_dir/topup/down_b0.nii.gz 0 1
+dwiextract $out_dir/AP_rts_RAS_den_unr.nii.gz $out_dir/topup/down_allb0.nii.gz -bzero -fslgrad ${out_dir}/AP.bvec ${out_dir}/AP.bval
+mcflirt -in $out_dir/topup/down_allb0.nii.gz -out $out_dir/topup/mc_down_allb0.nii.gz -refvol 0
+fslmaths $out_dir/topup/mc_down_allb0.nii.gz -Tmean $out_dir/topup/down_b0.nii.gz
 echo "0 -1 0 $readout_time" >> $out_dir/topup/acq_parameters
 n_vol_down=$(cat $AP_bval | wc -w)
 for i in $( seq 1 "$n_vol_down"); do echo '2'>> $out_dir/topup/acq_index_down; done
