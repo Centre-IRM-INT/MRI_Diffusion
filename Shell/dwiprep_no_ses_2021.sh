@@ -47,29 +47,29 @@ t1=$t1_dir/${sub}_T1w.nii.gz
 
 readout_time=$(cat "$in_dir/${sub}${acq}_dir-AP_dwi.json" | python -c "import sys, json; print(json.load(sys.stdin)['TotalReadoutTime'])" )
 echo_spacing=$(cat "$in_dir/${sub}${acq}_dir-AP_dwi.json" | python -c "import sys, json; print(json.load(sys.stdin)['EffectiveEchoSpacing'])")
-direction_AP=$(cat "$in_dir/${sub}${acq}_dir-AP_dwi.json" | python -c "import sys, json; print(json.load(sys.stdin)['PhaseEncodingDirection'])" )
-direction_PA=$(cat "$in_dir/${sub}${acq}_dir-PA_dwi.json" | python -c "import sys, json; print(json.load(sys.stdin)['PhaseEncodingDirection'])" )
+directionAP=$(cat "$in_dir/${sub}${acq}_dir-AP_dwi.json" | python -c "import sys, json; print(json.load(sys.stdin)['PhaseEncodingDirection'])" )
+directionPA=$(cat "$in_dir/${sub}${acq}_dir-PA_dwi.json" | python -c "import sys, json; print(json.load(sys.stdin)['PhaseEncodingDirection'])" )
 slice_times=$(cat "$in_dir/${sub}${acq}_dir-AP_dwi.json" | python -c "import sys, json; print(json.load(sys.stdin)['SliceTiming'])" )
 #mb_factor=$(cat "$in_dir/${sub}_dir-AP_dwi.json" | python -c "import sys, json; print(json.load(sys.stdin)['MultibandAccelerationFactor'])")
 
 
-if [ "$directionAP" = '"j-"' ]; then
+if [ "$directionAP" = 'j-' ]; then
     AP=${in_dir}/${sub}${acq}_dir-AP_dwi.nii.gz
     AP_bval=${in_dir}/${sub}${acq}_dir-AP_dwi.bval
     AP_bvec=${in_dir}/${sub}${acq}_dir-AP_dwi.bvec
     echo "AP is real AP direction"
-elif [ "$directionAP" = '"j"' ]; then
+elif [ "$directionAP" = 'j' ]; then
     PA=${in_dir}/${sub}${acq}_dir-AP_dwi.nii.gz
     PA_bval=${in_dir}/${sub}${acq}_dir-AP_dwi.bval
     PA_bvec=${in_dir}/${sub}${acq}_dir-AP_dwi.bvec
     echo "AP is actually PA direction"
 fi;
-if [ "$directionPA" = '"j"' ]; then
+if [ "$directionPA" = 'j' ]; then
     PA=${in_dir}/${sub}${acq}_dir-PA_dwi.nii.gz
     PA_bval=${in_dir}/${sub}${acq}_dir-PA_dwi.bval
     PA_bvec=${in_dir}/${sub}${acq}_dir-PA_dwi.bvec
     echo "PA is real PA direction"
-elif [ "$directionPA" = '"j-"' ]; then
+elif [ "$directionPA" = 'j-' ]; then
     AP=${in_dir}/${sub}${acq}_dir-PA_dwi.nii.gz
     AP_bval=${in_dir}/${sub}${acq}_dir-PA_dwi.bval
     AP_bvec=${in_dir}/${sub}${acq}_dir-PA_dwi.bvec
