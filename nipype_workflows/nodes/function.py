@@ -84,7 +84,7 @@ def keep_even_slices(fmap_AP_PA_file):
 
     dimz = os.popen('fslval {}.nii.gz dim3'.format(fmap_AP_PA_file)).read()
 
-    print("dimz = {}".format(dimz))
+    print("dimz = {}".format(int(dimz)))
 
     if int(dimz)%2 == 1:
 
@@ -99,3 +99,20 @@ def keep_even_slices(fmap_AP_PA_file):
         print("After modif, dimz = {}".format(dimz))
 
     return fmap_AP_PA_file
+
+
+def return_b0_even(fmap_AP_PA_file):
+
+    import os
+
+    dimz = os.popen('fslval {}.nii.gz dim3'.format(fmap_AP_PA_file)).read()
+
+    print("dimz = {}".format(int(dimz)))
+
+    if int(dimz)%2 == 1:
+
+        b02b0_file = op.join(op.dirname(op.abspath(__file__)),"b02b0_1.cnf")
+    else:
+        b02b0_file = op.join(op.dirname(op.abspath(__file__)),"b02b0.cnf")
+
+    return b02b0_file
