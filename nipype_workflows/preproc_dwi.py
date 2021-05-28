@@ -19,7 +19,7 @@ from nipype.interfaces.spm import utils as spmu
 
 from nodes.prepare import FslOrient
 
-from nodes.function import read_json_info, create_acq_files, keep_even_slices
+from nodes.function import read_json_info, create_acq_files
 from utils.util_func import paste_2files, create_tuple_of_two_elem, create_list_of_two_elem
 
 #import nipype.interfaces.matlab as mlab
@@ -241,16 +241,11 @@ def create_topup_pipe(wf_name="topup_pipe"):
 
     topup_pipe.connect(merge_2files, 'list_elem', merge_b0_AP_PA, 'in_files')
 
-    # keep even slices
-    even_slices = pe.Node(interface=niu.Function(input_names = ["fmap_AP_PA_file"], output_names = ["fmap_AP_PA_file"], function = keep_even_slices), name="even_slices")
-    topup_pipe.connect(merge_b0_AP_PA, 'merged_file', even_slices, 'fmap_AP_PA_file')
-
-
     # topup
     topup = pe.Node(interface=fsl.TOPUP(), name="topup")
     topup.inputs.config = op.join(op.dirname(op.abspath(__file__)),"b02b0.cnf")
 
-    topup_pipe.connect(even_slices, 'fmap_AP_PA_file', topup, "in_file")
+    topup_pipe.connect(merge_b0_AP_PA, 'merged_file', topup, "in_file")
     topup_pipe.connect(inputnode, 'acq_param_file', topup, "encoding_file")
 
     ###########################################################################
@@ -309,16 +304,11 @@ def create_eddy_pipe(wf_name="eddy_pipe"):
 
     eddy_pipe.connect(merge_data_2files, 'list_elem', merge_data_AP_PA, 'in_files')
 
-    # keep even slices data
-    even_slices_data = pe.Node(interface=niu.Function(input_names = ["fmap_AP_PA_file"], output_names = ["fmap_AP_PA_file"], function = keep_even_slices), name="even_slices_data")
-    eddy_pipe.connect(merge_data_AP_PA, 'merged_file', even_slices_data, 'fmap_AP_PA_file')
-
-
     # eddy
     eddy = pe.Node(interface=fsl.Eddy(), name="eddy")
     eddy.inputs.is_shelled = True
 
-    eddy_pipe.connect(even_slices_data, 'fmap_AP_PA_file', eddy, 'in_file')
+    eddy_pipe.connect(merge_data_AP_PA, 'merged_file', eddy, 'in_file')
     eddy_pipe.connect(inputnode, 'b0_mask', eddy, 'in_mask')
 
     eddy_pipe.connect(inputnode, 'acq_index_file', eddy, 'in_index')
