@@ -19,7 +19,7 @@ from nipype.interfaces.spm import utils as spmu
 
 from nodes.prepare import FslOrient
 
-from nodes.function import read_json_info, create_acq_files, keep_even_slices
+from nodes.function import read_json_info, create_acq_files, return_b0_even
 from utils.util_func import paste_2files, create_tuple_of_two_elem, create_list_of_two_elem
 
 #import nipype.interfaces.matlab as mlab
