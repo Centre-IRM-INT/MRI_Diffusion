@@ -78,24 +78,19 @@ def create_acq_files(bval_AP, bval_PA, readout_time):
     return acq_param_file, acq_index_file, bval_AP_new_file, bval_PA_new_file
 
 
-def keep_even_slices(fmap_AP_PA_file):
+def return_b0_even(fmap_AP_PA_file):
 
     import os
 
     dimz = os.popen('fslval {}.nii.gz dim3'.format(fmap_AP_PA_file)).read()
 
-    print("dimz = {}".format(dimz))
+    print("dimz = {}".format(int(dimz)))
 
     if int(dimz)%2 == 1:
 
-        print("Remove one slice from data to get even number of slices")
-        tmp_file = os.path.abspath("up_down_b0")
+        b02b0_file = op.join(op.dirname(op.abspath(__file__)),"b02b0_1.cnf")
+    else:
+        b02b0_file = op.join(op.dirname(op.abspath(__file__)),"b02b0.cnf")
 
-        os.system("fslroi {}.nii.gz {}.nii.gz  0 -1 0 -1 1 -1".format(fmap_AP_PA_file, even_file))
-        fmap_AP_PA_file = even_file
+    return b02b0_file
 
-        dimz = os.popen('fslval {}.nii.gz dim3'.format(fmap_AP_PA_file)).read()
-
-        print("After modif, dimz = {}".format(dimz))
-
-    return fmap_AP_PA_file

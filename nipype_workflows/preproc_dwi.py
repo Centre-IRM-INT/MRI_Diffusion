@@ -19,7 +19,7 @@ from nipype.interfaces.spm import utils as spmu
 
 from nodes.prepare import FslOrient
 
-from nodes.function import read_json_info, create_acq_files
+from nodes.function import read_json_info, create_acq_files, keep_even_slices
 from utils.util_func import paste_2files, create_tuple_of_two_elem, create_list_of_two_elem
 
 #import nipype.interfaces.matlab as mlab
@@ -241,9 +241,16 @@ def create_topup_pipe(wf_name="topup_pipe"):
 
     topup_pipe.connect(merge_2files, 'list_elem', merge_b0_AP_PA, 'in_files')
 
+    # keep even slices
+    return_b02b0_for_b0 = pe.Node(interface=niu.Function(input_names = ["fmap_AP_PA_file"], output_names = ["b02b0_file"], function = return_b0_even), name="even_slices")
+
+    topup_pipe.connect(merge_b0_AP_PA, 'merged_file', return_b02b0_for_b0, 'fmap_AP_PA_file')
+
+
     # topup
     topup = pe.Node(interface=fsl.TOPUP(), name="topup")
-    topup.inputs.config = op.join(op.dirname(op.abspath(__file__)),"b02b0.cnf")
+
+    topup_pipe.connect(return_b02b0_for_b0, 'b02b0_file', topup, "config")
 
     topup_pipe.connect(merge_b0_AP_PA, 'merged_file', topup, "in_file")
     topup_pipe.connect(inputnode, 'acq_param_file', topup, "encoding_file")
