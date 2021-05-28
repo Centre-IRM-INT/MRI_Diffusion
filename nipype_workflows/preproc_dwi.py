@@ -22,6 +22,8 @@ from nodes.prepare import FslOrient
 from nodes.function import read_json_info, create_acq_files, return_b0_even
 from utils.util_func import paste_2files, create_tuple_of_two_elem, create_list_of_two_elem
 
+from define_variables import *
+
 #import nipype.interfaces.matlab as mlab
 #~ mlab.MatlabCommand.set_default_matlab_cmd("matlab -nodesktop -nosplash") #comment on lance matlab sans la console matlab
 
@@ -30,17 +32,6 @@ def get_first(string_list):
         return string_list[0]
     else:
         return string_list
-
-data_path = "/hpc/crise/meunier.d/Data/ProtisPrim/"
-
-#nipype_analyses_path = "/hpc/crise/meunier.d/Data/ProtisPrim/Mri_Diffusion_niolon"
-nipype_analyses_path = "/hpc/crise/meunier.d/Data/ProtisPrim/Mri_Diffusion_niolon2"
-
-subject_ids = ["Isidor"]
-
-func_sessions = ["postIschemia"]
-
-main_wf_name = "main_workflow"
 
 
 def _create_reorientstd_pipeline(name="reorient_pipe",
