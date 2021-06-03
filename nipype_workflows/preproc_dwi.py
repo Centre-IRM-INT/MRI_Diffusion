@@ -23,8 +23,6 @@ from nodes.function import read_json_info, create_acq_files, return_b0_even
 from utils.util_func import paste_2files, create_tuple_of_two_elem, create_list_of_two_elem
 
 
-
-
 from define_variables import *
 
 #import nipype.interfaces.matlab as mlab
@@ -277,7 +275,10 @@ def create_eddy_pipe(wf_name="eddy_pipe"):
     eddy_pipe = pe.Workflow(name=wf_name)
 
     inputnode = pe.Node(niu.IdentityInterface(
-        fields=['dwi_AP','bval_AP_new_file','bvec_AP', 'dwi_PA','bval_PA_new_file','bvec_PA','acq_param_file', 'acq_index_file', 'b0_mask']),
+        fields=['dwi_AP','bval_AP_new_file','bvec_AP',
+                'dwi_PA','bval_PA_new_file','bvec_PA',
+                'acq_param_file', 'acq_index_file', 'b0_mask',
+                'topup_fieldcoef', 'topup_movpar']),
 
         name='inputnode')
 
@@ -314,6 +315,9 @@ def create_eddy_pipe(wf_name="eddy_pipe"):
 
     eddy_pipe.connect(inputnode, 'acq_index_file', eddy, 'in_index')
     eddy_pipe.connect(inputnode, 'acq_param_file', eddy, 'in_acqp')
+
+    eddy_pipe.connect(inputnode, 'topup_fieldcoef', eddy, 'in_topup_fieldcoef')
+    eddy_pipe.connect(inputnode, 'topup_movpar', eddy, 'in_topup_movpar')
 
     eddy_pipe.connect(paste_bval, 'paste_file', eddy, 'in_bval')
     eddy_pipe.connect(paste_bvec, 'paste_file', eddy, 'in_bvec')
@@ -475,6 +479,8 @@ def create_main_workflow():
     main_workflow.connect(preprocess_dwi_pipe, 'outputnode.preproc_dwi_AP', eddy_pipe, 'inputnode.dwi_AP')
     main_workflow.connect(preprocess_dwi_pipe, 'outputnode.preproc_dwi_PA', eddy_pipe, 'inputnode.dwi_PA')
 
+    main_workflow.connect(topup_pipe, 'topup.out_movpar', eddy_pipe, 'inputnode.topup_movpar')
+    main_workflow.connect(topup_pipe, 'topup.out_fieldcoef', eddy_pipe, 'inputnode.topup_fieldcoef')
     main_workflow.connect(topup_pipe, 'mask_unwarped_b0.out_file', eddy_pipe, 'inputnode.b0_mask')
 
     # post_eddy_pipe

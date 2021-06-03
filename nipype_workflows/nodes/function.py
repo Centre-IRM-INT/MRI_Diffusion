@@ -82,7 +82,7 @@ def keep_even_slices(fmap_AP_PA_file):
 
     import os
 
-    dimz = os.popen('fslval {}.nii.gz dim3'.format(fmap_AP_PA_file)).read()
+    dimz = os.popen('fslval {} dim3'.format(fmap_AP_PA_file)).read()
 
     print("dimz = {}".format(int(dimz)))
 
@@ -105,7 +105,7 @@ def return_b0_even(fmap_AP_PA_file):
 
     import os
 
-    dimz = os.popen('fslval {}.nii.gz dim3'.format(fmap_AP_PA_file)).read()
+    dimz = os.popen('fslval {} dim3'.format(fmap_AP_PA_file)).read()
 
     print("dimz = {}".format(int(dimz)))
 
