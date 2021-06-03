@@ -112,8 +112,8 @@ def return_b0_even(fmap_AP_PA_file):
 
     if int(dimz)%2 == 1:
 
-        b02b0_file = op.join(op.dirname(op.abspath(__file__)),"b02b0_1.cnf")
+        b02b0_file = "b02b0_1.cnf"
     else:
-        b02b0_file = op.join(op.dirname(op.abspath(__file__)),"b02b0.cnf")
+        b02b0_file = "b02b0.cnf"
 
     return b02b0_file
