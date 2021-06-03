@@ -104,6 +104,7 @@ def keep_even_slices(fmap_AP_PA_file):
 def return_b0_even(fmap_AP_PA_file):
 
     import os
+    import os.path as op
 
     dimz = os.popen('fslval {} dim3'.format(fmap_AP_PA_file)).read()
 
