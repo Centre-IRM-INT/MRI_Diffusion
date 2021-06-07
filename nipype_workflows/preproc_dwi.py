@@ -444,6 +444,7 @@ def create_eddy_pipe(wf_name="eddy_pipe"):
 
     eddy.inputs.dont_peas=True
     eddy.inputs.method="lsr"
+    eddy.inputs.fep=True
 
 
     eddy_pipe.connect(merge_data_AP_PA, 'merged_file', eddy, 'in_file')
