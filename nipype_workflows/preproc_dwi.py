@@ -581,7 +581,7 @@ def create_main_workflow():
     #acq_pipe = create_acq_pipe()
 
     print("acq_pipe")
-    acq_pipe = create_mean_acq_pipe
+    acq_pipe = create_mean_acq_pipe()
 
     main_workflow.connect(datasource, 'json_AP', acq_pipe, 'inputnode.json_AP')
     main_workflow.connect(datasource, 'json_PA', acq_pipe, 'inputnode.json_PA')
