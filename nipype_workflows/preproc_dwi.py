@@ -222,11 +222,25 @@ def create_topup_pipe(wf_name="topup_pipe"):
     topup_pipe.connect(tuple_PA, 'tuple_elem', dwi_extract_PA, 'grad_fsl')
     topup_pipe.connect(inputnode, 'dwi_PA', dwi_extract_PA, 'in_file')
 
+    # average_b0_AP
+    average_b0_AP =  pe.Node(interface=fsl.MeanImage(), name="average_b0_AP")
+    average_b0_AP.inputs.dimension = "T"
+
+
+    topup_pipe.connect(dwi_extract_AP, 'out_file', average_b0_AP, 'in_file')
+
+    # average_b0_PA
+    average_b0_PA =  pe.Node(interface=fsl.MeanImage(), name="average_b0_PA")
+    average_b0_PA.inputs.dimension = "T"
+
+
+    topup_pipe.connect(dwi_extract_PA, 'out_file', average_b0_PA, 'in_file')
+
     # merge_b0_AP_PA
     merge_2files = pe.Node(interface=niu.Function(input_names = ["elem1", "elem2"], output_names = ["list_elem"], function = create_list_of_two_elem), name="merge_2files")
 
-    topup_pipe.connect(dwi_extract_AP, 'out_file', merge_2files, 'elem1')
-    topup_pipe.connect(dwi_extract_PA, 'out_file', merge_2files, 'elem2')
+    topup_pipe.connect(average_b0_AP, 'out_file', merge_2files, 'elem1')
+    topup_pipe.connect(average_b0_PA, 'out_file', merge_2files, 'elem2')
 
     merge_b0_AP_PA =  pe.Node(interface=fsl.Merge(), name="merge_b0_AP_PA")
     merge_b0_AP_PA.inputs.dimension = "t"
@@ -241,7 +255,6 @@ def create_topup_pipe(wf_name="topup_pipe"):
 
     # topup
     topup = pe.Node(interface=fsl.TOPUP(), name="topup")
-
     topup_pipe.connect(return_b02b0_for_b0, 'b02b0_file', topup, "config")
 
     topup_pipe.connect(merge_b0_AP_PA, 'merged_file', topup, "in_file")
@@ -309,6 +322,10 @@ def create_eddy_pipe(wf_name="eddy_pipe"):
     # eddy
     eddy = pe.Node(interface=fsl.Eddy(), name="eddy")
     eddy.inputs.is_shelled = True
+
+    eddy.inputs.dont_peas=True
+    eddy.inputs.method="lsr"
+
 
     eddy_pipe.connect(merge_data_AP_PA, 'merged_file', eddy, 'in_file')
     eddy_pipe.connect(inputnode, 'b0_mask', eddy, 'in_mask')
