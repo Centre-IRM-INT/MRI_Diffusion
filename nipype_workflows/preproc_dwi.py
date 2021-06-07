@@ -19,7 +19,7 @@ from nipype.interfaces.spm import utils as spmu
 
 from nodes.prepare import FslOrient
 
-from nodes.function import read_json_info, create_acq_files, return_b0_even
+from nodes.function import read_json_info, create_acq_files, create_mean_acq_files, return_b0_even
 from utils.util_func import paste_2files, create_tuple_of_two_elem, create_list_of_two_elem
 
 
@@ -154,6 +154,35 @@ def create_preprocess_dwi_pipe(wf_name='preprocess_dwi_pipe'):
 
     return preprocess_dwi_pipe
 
+def create_mean_acq_pipe(wf_name='acq_pipe'):
+
+    """
+    Preprocessing old fashioned normalize struct -> mean funct with SPM12
+    """
+    acq_pipe = pe.Workflow(name=wf_name)
+
+    inputnode = pe.Node(niu.IdentityInterface(
+        fields=['bval_AP','json_AP', 'bval_PA','json_PA']),
+
+        #fields=['dwi_AP', 'json_AP',
+        #        'dwi_PA','bval_PA','bvec_PA', 'json_PA']),
+
+        name='inputnode')
+
+    # read json
+    read_json = pe.Node(interface=niu.Function(input_names = ["json_file"], output_names = ["readout_time"], function = read_json_info), name="read_json")
+
+    acq_pipe.connect(inputnode, 'json_AP', read_json, 'json_file')
+
+    # create acq files
+    acq = pe.Node(interface=niu.Function(input_names = ["bval_AP", "bval_PA", "readout_time"], output_names = ["acq_param_file", "acq_index_file", "bval_AP_new_file", "bval_PA_new_file"], function = create_mean_acq_files), name="acq")
+
+    acq_pipe.connect(inputnode, 'bval_AP', acq, 'bval_AP')
+    acq_pipe.connect(inputnode, 'bval_PA', acq, 'bval_PA')
+    acq_pipe.connect(read_json, 'readout_time', acq, 'readout_time')
+
+    return acq_pipe
+
 def create_acq_pipe(wf_name='acq_pipe'):
 
     """
@@ -183,7 +212,7 @@ def create_acq_pipe(wf_name='acq_pipe'):
 
     return acq_pipe
 
-def create_topup_pipe(wf_name="topup_pipe"):
+def create_mean_topup_pipe(wf_name="topup_pipe"):
 
     topup_pipe = pe.Workflow(name=wf_name)
 
@@ -282,6 +311,96 @@ def create_topup_pipe(wf_name="topup_pipe"):
     topup_pipe.connect(bet_unwarped_b0, 'out_file', mask_unwarped_b0, 'in_file')
 
     return topup_pipe
+
+
+
+def create_topup_pipe(wf_name="topup_pipe"):
+
+    topup_pipe = pe.Workflow(name=wf_name)
+
+    inputnode = pe.Node(niu.IdentityInterface(
+        fields=['dwi_AP','bval_AP_new_file','bvec_AP', 'dwi_PA','bval_PA_new_file','bvec_PA','acq_param_file']),
+
+        #fields=['dwi_AP', 'json_AP',
+        #        'dwi_PA','bval_PA','bvec_PA', 'json_PA']),
+
+        name='inputnode')
+
+    # dwi_extract
+    # AP
+    tuple_AP = pe.Node(interface=niu.Function(input_names = ["elem1", "elem2"], output_names = ["tuple_elem"], function = create_tuple_of_two_elem), name="tuple_AP")
+
+    topup_pipe.connect(inputnode, 'bvec_AP', tuple_AP, 'elem1')
+    topup_pipe.connect(inputnode, 'bval_AP_new_file', tuple_AP, 'elem2')
+
+    dwi_extract_AP = pe.Node(interface=umrt.DWIExtract(), name="dwi_extract_AP")
+    dwi_extract_AP.inputs.bzero = True
+    dwi_extract_AP.inputs.out_file = "b0_AP.nii.gz"
+
+    topup_pipe.connect(tuple_AP, 'tuple_elem', dwi_extract_AP, 'grad_fsl')
+    topup_pipe.connect(inputnode, 'dwi_AP', dwi_extract_AP, 'in_file')
+
+    # PA
+    tuple_PA = pe.Node(interface=niu.Function(input_names = ["elem1", "elem2"], output_names = ["tuple_elem"], function = create_tuple_of_two_elem), name="tuple_PA")
+
+    topup_pipe.connect(inputnode, 'bvec_PA', tuple_PA, 'elem1')
+    topup_pipe.connect(inputnode, 'bval_PA_new_file', tuple_PA, 'elem2')
+
+    dwi_extract_PA = pe.Node(interface=umrt.DWIExtract(), name="dwi_extract_PA")
+    dwi_extract_PA.inputs.bzero = True
+    dwi_extract_PA.inputs.out_file = "b0_PA.nii.gz"
+
+    topup_pipe.connect(tuple_PA, 'tuple_elem', dwi_extract_PA, 'grad_fsl')
+    topup_pipe.connect(inputnode, 'dwi_PA', dwi_extract_PA, 'in_file')
+
+    # merge_b0_AP_PA
+    merge_2files = pe.Node(interface=niu.Function(input_names = ["elem1", "elem2"], output_names = ["list_elem"], function = create_list_of_two_elem), name="merge_2files")
+
+    topup_pipe.connect(dwi_extract_AP, 'out_file', merge_2files, 'elem1')
+    topup_pipe.connect(dwi_extract_PA, 'out_file', merge_2files, 'elem2')
+
+    merge_b0_AP_PA =  pe.Node(interface=fsl.Merge(), name="merge_b0_AP_PA")
+    merge_b0_AP_PA.inputs.dimension = "t"
+
+    topup_pipe.connect(merge_2files, 'list_elem', merge_b0_AP_PA, 'in_files')
+
+    # keep even slices
+    return_b02b0_for_b0 = pe.Node(interface=niu.Function(input_names = ["fmap_AP_PA_file"], output_names = ["b02b0_file"], function = return_b0_even), name="even_slices")
+
+    topup_pipe.connect(merge_b0_AP_PA, 'merged_file', return_b02b0_for_b0, 'fmap_AP_PA_file')
+
+
+    # topup
+    topup = pe.Node(interface=fsl.TOPUP(), name="topup")
+    topup_pipe.connect(return_b02b0_for_b0, 'b02b0_file', topup, "config")
+
+    topup_pipe.connect(merge_b0_AP_PA, 'merged_file', topup, "in_file")
+    topup_pipe.connect(inputnode, 'acq_param_file', topup, "encoding_file")
+
+    ###########################################################################
+    ## Eddy could be split here between topup and eddy?
+    ###########################################################################
+    # mean
+    mean_unwarped_b0 = pe.Node(interface=fsl.MeanImage(), name="mean_unwarped_b0")
+    topup_pipe.connect(topup, "out_corrected", mean_unwarped_b0, 'in_file')
+
+    # bet unwarped b0
+    bet_unwarped_b0 = pe.Node(interface=fsl.BET(), name="bet_unwarped_b0")
+    bet_unwarped_b0.inputs.mask = True
+    bet_unwarped_b0.inputs.args = "-f 0.3"
+    topup_pipe.connect(mean_unwarped_b0, 'out_file',
+                            bet_unwarped_b0, 'in_file')
+
+    # mask_unwarped_b0
+    mask_unwarped_b0 = pe.Node(interface=fsl.Threshold(), name="mask_unwarped_b0")
+    mask_unwarped_b0.inputs.thresh = 0
+    mask_unwarped_b0.inputs.args = " -bin "
+
+    topup_pipe.connect(bet_unwarped_b0, 'out_file', mask_unwarped_b0, 'in_file')
+
+    return topup_pipe
+
+
 
 def create_eddy_pipe(wf_name="eddy_pipe"):
 
@@ -458,8 +577,11 @@ def create_main_workflow():
     main_workflow.connect(datasource, 'bvec_PA', preprocess_dwi_pipe, 'inputnode.bvec_PA')
 
     # acq_pipe
+    #print("acq_pipe")
+    #acq_pipe = create_acq_pipe()
+
     print("acq_pipe")
-    acq_pipe = create_acq_pipe()
+    acq_pipe = create_mean_acq_pipe
 
     main_workflow.connect(datasource, 'json_AP', acq_pipe, 'inputnode.json_AP')
     main_workflow.connect(datasource, 'json_PA', acq_pipe, 'inputnode.json_PA')
@@ -468,8 +590,11 @@ def create_main_workflow():
     main_workflow.connect(datasource, 'bval_PA', acq_pipe, 'inputnode.bval_PA')
 
     # topup_pipe
-    print("topup_pipe")
-    topup_pipe = create_topup_pipe()
+    #print("topup_pipe")
+    #topup_pipe = create_topup_pipe()
+
+    print("topup_mean_pipe")
+    topup_pipe = create_mean_topup_pipe()
 
     main_workflow.connect(datasource, 'bvec_AP', topup_pipe, 'inputnode.bvec_AP')
     main_workflow.connect(datasource, 'bvec_PA', topup_pipe, 'inputnode.bvec_PA')
