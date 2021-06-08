@@ -509,7 +509,7 @@ def create_post_eddy_pipe(wf_name="post_eddy_pipe"):
     dwi_mask.inputs.out_file = "brainmask.nii.gz"
 
     post_eddy_pipe.connect(tuple_rotated_bvec, 'tuple_elem', dwi_mask, 'grad_fsl')
-    post_eddy_pipe.connect(merge_data_eddy, 'out_file', dwi_mask, 'in_file')
+    post_eddy_pipe.connect(merge_data_eddy, 'merged_file', dwi_mask, 'in_file')
 
     # dwi_bias_correct
     dwi_bias_correct = pe.Node(interface=mrt.DWIBiasCorrect(),
