@@ -490,12 +490,26 @@ def create_post_eddy_pipe(wf_name="post_eddy_pipe"):
     post_eddy_pipe.connect(inputnode, 'rotated_bvecs', tuple_rotated_bvec, 'elem1')
     post_eddy_pipe.connect(inputnode, 'paste_bval', tuple_rotated_bvec, 'elem2')
 
+
+    # concat_dwi_eddy
+    # list_data_eddy
+    list_data_eddy = pe.Node(interface=niu.Function(input_names = ["elem1", "elem2"], output_names = ["list_elem"], function = create_list_of_two_elem), name="list_data_eddy")
+
+    eddy_pipe.connect(abs_eddy, 'out_file', list_data_eddy, 'elem1')
+    eddy_pipe.connect(abs_eddy, 'out_file', list_data_eddy, 'elem2')
+
+    # merge_data_eddy
+    merge_data_eddy =  pe.Node(interface=fsl.Merge(), name="merge_data_eddy")
+    merge_data_eddy.inputs.dimension = "t"
+
+    eddy_pipe.connect(list_data_eddy, 'list_elem', merge_data_eddy, 'in_files')
+
     # dwi_mask
     dwi_mask = pe.Node(interface=umrt.BrainMask(), name="dwi_mask")
     dwi_mask.inputs.out_file = "brainmask.nii.gz"
 
     post_eddy_pipe.connect(tuple_rotated_bvec, 'tuple_elem', dwi_mask, 'grad_fsl')
-    post_eddy_pipe.connect(abs_eddy, 'out_file', dwi_mask, 'in_file')
+    post_eddy_pipe.connect(merge_data_eddy, 'out_file', dwi_mask, 'in_file')
 
     # dwi_bias_correct
     dwi_bias_correct = pe.Node(interface=mrt.DWIBiasCorrect(),
