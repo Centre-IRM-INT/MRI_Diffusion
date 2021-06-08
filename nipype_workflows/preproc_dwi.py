@@ -491,33 +491,51 @@ def create_post_eddy_pipe(wf_name="post_eddy_pipe"):
     post_eddy_pipe.connect(inputnode, 'paste_bval', tuple_rotated_bvec, 'elem2')
 
 
-    # concat_dwi_eddy
-    # list_data_eddy
-    list_data_eddy = pe.Node(interface=niu.Function(input_names = ["elem1", "elem2"], output_names = ["list_elem"], function = create_list_of_two_elem), name="list_data_eddy")
+    # concat_abs_eddy
+    # list_abs_eddy
+    list_abs_eddy = pe.Node(interface=niu.Function(input_names = ["elem1", "elem2"], output_names = ["list_elem"], function = create_list_of_two_elem), name="list_abs_eddy")
 
-    post_eddy_pipe.connect(abs_eddy, 'out_file', list_data_eddy, 'elem1')
-    post_eddy_pipe.connect(abs_eddy, 'out_file', list_data_eddy, 'elem2')
+    post_eddy_pipe.connect(abs_eddy, 'out_file', list_abs_eddy, 'elem1')
+    post_eddy_pipe.connect(abs_eddy, 'out_file', list_abs_eddy, 'elem2')
 
-    # merge_data_eddy
-    merge_data_eddy =  pe.Node(interface=fsl.Merge(), name="merge_data_eddy")
-    merge_data_eddy.inputs.dimension = "t"
+    # merge_abs_eddy
+    merge_abs_eddy =  pe.Node(interface=fsl.Merge(), name="merge_abs_eddy")
+    merge_abs_eddy.inputs.dimension = "t"
 
-    post_eddy_pipe.connect(list_data_eddy, 'list_elem', merge_data_eddy, 'in_files')
+    post_eddy_pipe.connect(list_abs_eddy, 'list_elem', merge_abs_eddy, 'in_files')
 
     # dwi_mask
     dwi_mask = pe.Node(interface=umrt.BrainMask(), name="dwi_mask")
     dwi_mask.inputs.out_file = "brainmask.nii.gz"
 
     post_eddy_pipe.connect(tuple_rotated_bvec, 'tuple_elem', dwi_mask, 'grad_fsl')
-    post_eddy_pipe.connect(merge_data_eddy, 'merged_file', dwi_mask, 'in_file')
+    post_eddy_pipe.connect(merge_abs_eddy, 'merged_file', dwi_mask, 'in_file')
+
+
+
+
+    # concat_dwi
+    # list_dwi
+    list_dwi = pe.Node(interface=niu.Function(input_names = ["elem1", "elem2"], output_names = ["list_elem"], function = create_list_of_two_elem), name="list_dwi")
+
+    post_eddy_pipe.connect(inputnode, 'dwi_corrected', list_dwi, 'elem1')
+    post_eddy_pipe.connect(inputnode, 'dwi_corrected', list_dwi, 'elem2')
+
+    # merge_dwi
+    merge_dwi =  pe.Node(interface=fsl.Merge(), name="merge_dwi")
+    merge_dwi.inputs.dimension = "t"
+
+    post_eddy_pipe.connect(list_dwi, 'list_elem', merge_dwi, 'in_files')
+
 
     # dwi_bias_correct
+
     dwi_bias_correct = pe.Node(interface=mrt.DWIBiasCorrect(),
                                name="dwi_bias_correct")
     dwi_bias_correct.inputs.use_ants = True
 
     post_eddy_pipe.connect(tuple_rotated_bvec, 'tuple_elem', dwi_bias_correct, 'grad_fsl')
-    post_eddy_pipe.connect(inputnode, 'dwi_corrected', dwi_bias_correct, 'in_file')
+    post_eddy_pipe.connect(merge_dwi, 'merged_file', dwi_bias_correct, 'in_file')
     post_eddy_pipe.connect(dwi_mask, 'out_file', dwi_bias_correct, 'in_mask')
 
     # final dti fit
