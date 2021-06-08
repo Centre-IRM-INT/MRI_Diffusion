@@ -19,8 +19,11 @@ from nipype.interfaces.spm import utils as spmu
 
 from nodes.prepare import FslOrient
 
-from nodes.function import read_json_info, create_acq_files, return_b0_even
+from nodes.function import read_json_info, create_acq_files, create_mean_acq_files, return_b0_even
 from utils.util_func import paste_2files, create_tuple_of_two_elem, create_list_of_two_elem
+
+
+from define_variables import *
 
 #import nipype.interfaces.matlab as mlab
 #~ mlab.MatlabCommand.set_default_matlab_cmd("matlab -nodesktop -nosplash") #comment on lance matlab sans la console matlab
@@ -30,17 +33,6 @@ def get_first(string_list):
         return string_list[0]
     else:
         return string_list
-
-data_path = "/hpc/crise/meunier.d/Data/ProtisPrim/"
-
-#nipype_analyses_path = "/hpc/crise/meunier.d/Data/ProtisPrim/Mri_Diffusion_niolon"
-nipype_analyses_path = "/hpc/crise/meunier.d/Data/ProtisPrim/Mri_Diffusion_niolon2"
-
-subject_ids = ["Isidor"]
-
-func_sessions = ["postIschemia"]
-
-main_wf_name = "main_workflow"
 
 
 def _create_reorientstd_pipeline(name="reorient_pipe",
@@ -162,6 +154,35 @@ def create_preprocess_dwi_pipe(wf_name='preprocess_dwi_pipe'):
 
     return preprocess_dwi_pipe
 
+def create_mean_acq_pipe(wf_name='acq_pipe'):
+
+    """
+    Preprocessing old fashioned normalize struct -> mean funct with SPM12
+    """
+    acq_pipe = pe.Workflow(name=wf_name)
+
+    inputnode = pe.Node(niu.IdentityInterface(
+        fields=['bval_AP','json_AP', 'bval_PA','json_PA']),
+
+        #fields=['dwi_AP', 'json_AP',
+        #        'dwi_PA','bval_PA','bvec_PA', 'json_PA']),
+
+        name='inputnode')
+
+    # read json
+    read_json = pe.Node(interface=niu.Function(input_names = ["json_file"], output_names = ["readout_time"], function = read_json_info), name="read_json")
+
+    acq_pipe.connect(inputnode, 'json_AP', read_json, 'json_file')
+
+    # create acq files
+    acq = pe.Node(interface=niu.Function(input_names = ["bval_AP", "bval_PA", "readout_time"], output_names = ["acq_param_file", "acq_index_file", "bval_AP_new_file", "bval_PA_new_file"], function = create_mean_acq_files), name="acq")
+
+    acq_pipe.connect(inputnode, 'bval_AP', acq, 'bval_AP')
+    acq_pipe.connect(inputnode, 'bval_PA', acq, 'bval_PA')
+    acq_pipe.connect(read_json, 'readout_time', acq, 'readout_time')
+
+    return acq_pipe
+
 def create_acq_pipe(wf_name='acq_pipe'):
 
     """
@@ -190,6 +211,108 @@ def create_acq_pipe(wf_name='acq_pipe'):
     acq_pipe.connect(read_json, 'readout_time', acq, 'readout_time')
 
     return acq_pipe
+
+def create_mean_topup_pipe(wf_name="topup_pipe"):
+
+    topup_pipe = pe.Workflow(name=wf_name)
+
+    inputnode = pe.Node(niu.IdentityInterface(
+        fields=['dwi_AP','bval_AP_new_file','bvec_AP', 'dwi_PA','bval_PA_new_file','bvec_PA','acq_param_file']),
+
+        #fields=['dwi_AP', 'json_AP',
+        #        'dwi_PA','bval_PA','bvec_PA', 'json_PA']),
+
+        name='inputnode')
+
+    # dwi_extract
+    # AP
+    tuple_AP = pe.Node(interface=niu.Function(input_names = ["elem1", "elem2"], output_names = ["tuple_elem"], function = create_tuple_of_two_elem), name="tuple_AP")
+
+    topup_pipe.connect(inputnode, 'bvec_AP', tuple_AP, 'elem1')
+    topup_pipe.connect(inputnode, 'bval_AP_new_file', tuple_AP, 'elem2')
+
+    dwi_extract_AP = pe.Node(interface=umrt.DWIExtract(), name="dwi_extract_AP")
+    dwi_extract_AP.inputs.bzero = True
+    dwi_extract_AP.inputs.out_file = "b0_AP.nii.gz"
+
+    topup_pipe.connect(tuple_AP, 'tuple_elem', dwi_extract_AP, 'grad_fsl')
+    topup_pipe.connect(inputnode, 'dwi_AP', dwi_extract_AP, 'in_file')
+
+    # PA
+    tuple_PA = pe.Node(interface=niu.Function(input_names = ["elem1", "elem2"], output_names = ["tuple_elem"], function = create_tuple_of_two_elem), name="tuple_PA")
+
+    topup_pipe.connect(inputnode, 'bvec_PA', tuple_PA, 'elem1')
+    topup_pipe.connect(inputnode, 'bval_PA_new_file', tuple_PA, 'elem2')
+
+    dwi_extract_PA = pe.Node(interface=umrt.DWIExtract(), name="dwi_extract_PA")
+    dwi_extract_PA.inputs.bzero = True
+    dwi_extract_PA.inputs.out_file = "b0_PA.nii.gz"
+
+    topup_pipe.connect(tuple_PA, 'tuple_elem', dwi_extract_PA, 'grad_fsl')
+    topup_pipe.connect(inputnode, 'dwi_PA', dwi_extract_PA, 'in_file')
+
+    # average_b0_AP
+    average_b0_AP =  pe.Node(interface=fsl.MeanImage(), name="average_b0_AP")
+    average_b0_AP.inputs.dimension = "T"
+
+
+    topup_pipe.connect(dwi_extract_AP, 'out_file', average_b0_AP, 'in_file')
+
+    # average_b0_PA
+    average_b0_PA =  pe.Node(interface=fsl.MeanImage(), name="average_b0_PA")
+    average_b0_PA.inputs.dimension = "T"
+
+
+    topup_pipe.connect(dwi_extract_PA, 'out_file', average_b0_PA, 'in_file')
+
+    # merge_b0_AP_PA
+    merge_2files = pe.Node(interface=niu.Function(input_names = ["elem1", "elem2"], output_names = ["list_elem"], function = create_list_of_two_elem), name="merge_2files")
+
+    topup_pipe.connect(average_b0_AP, 'out_file', merge_2files, 'elem1')
+    topup_pipe.connect(average_b0_PA, 'out_file', merge_2files, 'elem2')
+
+    merge_b0_AP_PA =  pe.Node(interface=fsl.Merge(), name="merge_b0_AP_PA")
+    merge_b0_AP_PA.inputs.dimension = "t"
+
+    topup_pipe.connect(merge_2files, 'list_elem', merge_b0_AP_PA, 'in_files')
+
+    # keep even slices
+    return_b02b0_for_b0 = pe.Node(interface=niu.Function(input_names = ["fmap_AP_PA_file"], output_names = ["b02b0_file"], function = return_b0_even), name="even_slices")
+
+    topup_pipe.connect(merge_b0_AP_PA, 'merged_file', return_b02b0_for_b0, 'fmap_AP_PA_file')
+
+
+    # topup
+    topup = pe.Node(interface=fsl.TOPUP(), name="topup")
+    topup_pipe.connect(return_b02b0_for_b0, 'b02b0_file', topup, "config")
+
+    topup_pipe.connect(merge_b0_AP_PA, 'merged_file', topup, "in_file")
+    topup_pipe.connect(inputnode, 'acq_param_file', topup, "encoding_file")
+
+    ###########################################################################
+    ## Eddy could be split here between topup and eddy?
+    ###########################################################################
+    # mean
+    mean_unwarped_b0 = pe.Node(interface=fsl.MeanImage(), name="mean_unwarped_b0")
+    topup_pipe.connect(topup, "out_corrected", mean_unwarped_b0, 'in_file')
+
+    # bet unwarped b0
+    bet_unwarped_b0 = pe.Node(interface=fsl.BET(), name="bet_unwarped_b0")
+    bet_unwarped_b0.inputs.mask = True
+    bet_unwarped_b0.inputs.args = "-f 0.3"
+    topup_pipe.connect(mean_unwarped_b0, 'out_file',
+                            bet_unwarped_b0, 'in_file')
+
+    # mask_unwarped_b0
+    mask_unwarped_b0 = pe.Node(interface=fsl.Threshold(), name="mask_unwarped_b0")
+    mask_unwarped_b0.inputs.thresh = 0
+    mask_unwarped_b0.inputs.args = " -bin "
+
+    topup_pipe.connect(bet_unwarped_b0, 'out_file', mask_unwarped_b0, 'in_file')
+
+    return topup_pipe
+
+
 
 def create_topup_pipe(wf_name="topup_pipe"):
 
@@ -249,7 +372,6 @@ def create_topup_pipe(wf_name="topup_pipe"):
 
     # topup
     topup = pe.Node(interface=fsl.TOPUP(), name="topup")
-
     topup_pipe.connect(return_b02b0_for_b0, 'b02b0_file', topup, "config")
 
     topup_pipe.connect(merge_b0_AP_PA, 'merged_file', topup, "in_file")
@@ -278,12 +400,17 @@ def create_topup_pipe(wf_name="topup_pipe"):
 
     return topup_pipe
 
+
+
 def create_eddy_pipe(wf_name="eddy_pipe"):
 
     eddy_pipe = pe.Workflow(name=wf_name)
 
     inputnode = pe.Node(niu.IdentityInterface(
-        fields=['dwi_AP','bval_AP_new_file','bvec_AP', 'dwi_PA','bval_PA_new_file','bvec_PA','acq_param_file', 'acq_index_file', 'b0_mask']),
+        fields=['dwi_AP','bval_AP_new_file','bvec_AP',
+                'dwi_PA','bval_PA_new_file','bvec_PA',
+                'acq_param_file', 'acq_index_file', 'b0_mask',
+                'topup_fieldcoef', 'topup_movpar']),
 
         name='inputnode')
 
@@ -315,11 +442,18 @@ def create_eddy_pipe(wf_name="eddy_pipe"):
     eddy = pe.Node(interface=fsl.Eddy(), name="eddy")
     eddy.inputs.is_shelled = True
 
+    eddy.inputs.dont_peas=True
+    eddy.inputs.method="lsr"
+    eddy.inputs.fep=True
+
     eddy_pipe.connect(merge_data_AP_PA, 'merged_file', eddy, 'in_file')
     eddy_pipe.connect(inputnode, 'b0_mask', eddy, 'in_mask')
 
     eddy_pipe.connect(inputnode, 'acq_index_file', eddy, 'in_index')
     eddy_pipe.connect(inputnode, 'acq_param_file', eddy, 'in_acqp')
+
+    eddy_pipe.connect(inputnode, 'topup_fieldcoef', eddy, 'in_topup_fieldcoef')
+    eddy_pipe.connect(inputnode, 'topup_movpar', eddy, 'in_topup_movpar')
 
     eddy_pipe.connect(paste_bval, 'paste_file', eddy, 'in_bval')
     eddy_pipe.connect(paste_bvec, 'paste_file', eddy, 'in_bvec')
@@ -355,12 +489,27 @@ def create_post_eddy_pipe(wf_name="post_eddy_pipe"):
     post_eddy_pipe.connect(inputnode, 'rotated_bvecs', tuple_rotated_bvec, 'elem1')
     post_eddy_pipe.connect(inputnode, 'paste_bval', tuple_rotated_bvec, 'elem2')
 
+
+    # concat_abs_eddy
+    # list_abs_eddy
+    list_abs_eddy = pe.Node(interface=niu.Function(input_names = ["elem1", "elem2"], output_names = ["list_elem"], function = create_list_of_two_elem), name="list_abs_eddy")
+
+    post_eddy_pipe.connect(abs_eddy, 'out_file', list_abs_eddy, 'elem1')
+    post_eddy_pipe.connect(abs_eddy, 'out_file', list_abs_eddy, 'elem2')
+
+    # merge_abs_eddy
+    merge_abs_eddy =  pe.Node(interface=fsl.Merge(), name="merge_abs_eddy")
+    merge_abs_eddy.inputs.dimension = "t"
+
+    post_eddy_pipe.connect(list_abs_eddy, 'list_elem', merge_abs_eddy, 'in_files')
+
     # dwi_mask
     dwi_mask = pe.Node(interface=umrt.BrainMask(), name="dwi_mask")
     dwi_mask.inputs.out_file = "brainmask.nii.gz"
 
     post_eddy_pipe.connect(tuple_rotated_bvec, 'tuple_elem', dwi_mask, 'grad_fsl')
-    post_eddy_pipe.connect(abs_eddy, 'out_file', dwi_mask, 'in_file')
+    post_eddy_pipe.connect(merge_abs_eddy, 'merged_file', dwi_mask, 'in_file')
+
 
     # dwi_bias_correct
     dwi_bias_correct = pe.Node(interface=mrt.DWIBiasCorrect(),
@@ -368,7 +517,7 @@ def create_post_eddy_pipe(wf_name="post_eddy_pipe"):
     dwi_bias_correct.inputs.use_ants = True
 
     post_eddy_pipe.connect(tuple_rotated_bvec, 'tuple_elem', dwi_bias_correct, 'grad_fsl')
-    post_eddy_pipe.connect(inputnode, 'dwi_corrected', dwi_bias_correct, 'in_file')
+    post_eddy_pipe.connect(merge_abs_eddy, 'merged_file', dwi_bias_correct, 'in_file')
     post_eddy_pipe.connect(dwi_mask, 'out_file', dwi_bias_correct, 'in_mask')
 
     # final dti fit
@@ -443,8 +592,11 @@ def create_main_workflow():
     main_workflow.connect(datasource, 'bvec_PA', preprocess_dwi_pipe, 'inputnode.bvec_PA')
 
     # acq_pipe
+    #print("acq_pipe")
+    #acq_pipe = create_acq_pipe()
+
     print("acq_pipe")
-    acq_pipe = create_acq_pipe()
+    acq_pipe = create_mean_acq_pipe()
 
     main_workflow.connect(datasource, 'json_AP', acq_pipe, 'inputnode.json_AP')
     main_workflow.connect(datasource, 'json_PA', acq_pipe, 'inputnode.json_PA')
@@ -453,8 +605,11 @@ def create_main_workflow():
     main_workflow.connect(datasource, 'bval_PA', acq_pipe, 'inputnode.bval_PA')
 
     # topup_pipe
-    print("topup_pipe")
-    topup_pipe = create_topup_pipe()
+    #print("topup_pipe")
+    #topup_pipe = create_topup_pipe()
+
+    print("topup_mean_pipe")
+    topup_pipe = create_mean_topup_pipe()
 
     main_workflow.connect(datasource, 'bvec_AP', topup_pipe, 'inputnode.bvec_AP')
     main_workflow.connect(datasource, 'bvec_PA', topup_pipe, 'inputnode.bvec_PA')
@@ -481,6 +636,8 @@ def create_main_workflow():
     main_workflow.connect(preprocess_dwi_pipe, 'outputnode.preproc_dwi_AP', eddy_pipe, 'inputnode.dwi_AP')
     main_workflow.connect(preprocess_dwi_pipe, 'outputnode.preproc_dwi_PA', eddy_pipe, 'inputnode.dwi_PA')
 
+    main_workflow.connect(topup_pipe, 'topup.out_movpar', eddy_pipe, 'inputnode.topup_movpar')
+    main_workflow.connect(topup_pipe, 'topup.out_fieldcoef', eddy_pipe, 'inputnode.topup_fieldcoef')
     main_workflow.connect(topup_pipe, 'mask_unwarped_b0.out_file', eddy_pipe, 'inputnode.b0_mask')
 
     # post_eddy_pipe
