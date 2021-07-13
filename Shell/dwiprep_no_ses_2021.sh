@@ -192,7 +192,7 @@ mcflirt -in $out_dir/topup/up_allb0.nii.gz -out $out_dir/topup/mc_up_allb0.nii.g
 fslmaths $out_dir/topup/mc_up_allb0.nii.gz -Tmean $out_dir/topup/up_b0.nii.gz
 echo "0 1 0 $readout_time" >> $out_dir/topup/acq_parameters
 n_vol_up=$(cat $PA_bval | wc -w)
-for i in $( seq 1 "$n_vol_up"); do echo '2'>> $out_dir/topup/acq_index_up; done
+for i in $( seq 1 "$n_vol_up"); do echo '1'>> $out_dir/topup/acq_index_up; done
 
 echo "- blip-down phase encoding"
 #fslroi ${out_dir}/AP_rts_RAS_den_unr.nii.gz $out_dir/topup/down_b0.nii.gz 0 1
