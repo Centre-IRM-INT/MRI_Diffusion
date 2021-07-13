@@ -65,7 +65,7 @@ def _create_reorientstd_pipeline(name="reorient_pipe",
     return reorient_pipe
 
 
-def create_reorient_pipe(wf_name="reorient_pipe"):
+def create_reorient_pipe(reorient_dims, wf_name="reorient_pipe"):
 
     reorient_pipe = pe.Workflow(name=wf_name)
 
@@ -74,13 +74,13 @@ def create_reorient_pipe(wf_name="reorient_pipe"):
         name='inputnode')
 
     # reorient2std
-    reorient_dwi_AP = _create_reorientstd_pipeline(name="reorient_dwi_AP")
+    reorient_dwi_AP = _create_reorientstd_pipeline(name="reorient_dwi_AP", new_dims=reorient_dims)
     reorient_pipe.connect(inputnode, 'dwi_AP', reorient_dwi_AP, 'inputnode.image')
 
-    reorient_dwi_PA = _create_reorientstd_pipeline(name="reorient_dwi_PA")
+    reorient_dwi_PA = _create_reorientstd_pipeline(name="reorient_dwi_PA", new_dims=reorient_dims)
     reorient_pipe.connect(inputnode, 'dwi_PA', reorient_dwi_PA, 'inputnode.image')
 
-    reorient_T1w = _create_reorientstd_pipeline(name="reorient_T1w")
+    reorient_T1w = _create_reorientstd_pipeline(name="reorient_T1w", new_dims=reorient_dims)
     reorient_pipe.connect(inputnode, 'T1w', reorient_T1w, 'inputnode.image')
 
 
@@ -575,22 +575,33 @@ def create_main_workflow():
     ############################################# Preprocessing ################################
     print('create_preprocess_dwi')
 
+    if len(reorient_dims):
 
-    reorient_pipe = create_reorient_pipe()
+        reorient_pipe = create_reorient_pipe(reorient_dims)
 
-    main_workflow.connect(datasource, 'dwi_AP', reorient_pipe, 'inputnode.dwi_AP')
-    main_workflow.connect(datasource, 'dwi_PA', reorient_pipe, 'inputnode.dwi_PA')
-    main_workflow.connect(datasource, 'T1w', reorient_pipe, 'inputnode.T1w')
+        main_workflow.connect(datasource, 'dwi_AP', reorient_pipe, 'inputnode.dwi_AP')
+        main_workflow.connect(datasource, 'dwi_PA', reorient_pipe, 'inputnode.dwi_PA')
+        main_workflow.connect(datasource, 'T1w', reorient_pipe, 'inputnode.T1w')
 
-    preprocess_dwi_pipe = create_preprocess_dwi_pipe()
+        preprocess_dwi_pipe = create_preprocess_dwi_pipe()
 
-    main_workflow.connect(reorient_pipe, 'outputnode.reoriented_dwi_AP', preprocess_dwi_pipe, 'inputnode.dwi_AP')
-    main_workflow.connect(datasource, 'bval_AP', preprocess_dwi_pipe, 'inputnode.bval_AP')
-    main_workflow.connect(datasource, 'bvec_AP', preprocess_dwi_pipe, 'inputnode.bvec_AP')
+        main_workflow.connect(reorient_pipe, 'outputnode.reoriented_dwi_AP', preprocess_dwi_pipe, 'inputnode.dwi_AP')
+        main_workflow.connect(datasource, 'bval_AP', preprocess_dwi_pipe, 'inputnode.bval_AP')
+        main_workflow.connect(datasource, 'bvec_AP', preprocess_dwi_pipe, 'inputnode.bvec_AP')
 
-    main_workflow.connect(reorient_pipe, 'outputnode.reoriented_dwi_PA', preprocess_dwi_pipe, 'inputnode.dwi_PA')
-    main_workflow.connect(datasource, 'bval_PA', preprocess_dwi_pipe, 'inputnode.bval_PA')
-    main_workflow.connect(datasource, 'bvec_PA', preprocess_dwi_pipe, 'inputnode.bvec_PA')
+        main_workflow.connect(reorient_pipe, 'outputnode.reoriented_dwi_PA', preprocess_dwi_pipe, 'inputnode.dwi_PA')
+        main_workflow.connect(datasource, 'bval_PA', preprocess_dwi_pipe, 'inputnode.bval_PA')
+        main_workflow.connect(datasource, 'bvec_PA', preprocess_dwi_pipe, 'inputnode.bvec_PA')
+
+    else:
+
+        main_workflow.connect(datasource, 'dwi_AP',  preprocess_dwi_pipe, 'inputnode.dwi_AP')
+        main_workflow.connect(datasource, 'bval_AP', preprocess_dwi_pipe, 'inputnode.bval_AP')
+        main_workflow.connect(datasource, 'bvec_AP', preprocess_dwi_pipe, 'inputnode.bvec_AP')
+
+        main_workflow.connect(datasource, 'dwi_PA',  preprocess_dwi_pipe, 'inputnode.dwi_PA')
+        main_workflow.connect(datasource, 'bval_PA', preprocess_dwi_pipe, 'inputnode.bval_PA')
+        main_workflow.connect(datasource, 'bvec_PA', preprocess_dwi_pipe, 'inputnode.bvec_PA')
 
     # acq_pipe
     #print("acq_pipe")
