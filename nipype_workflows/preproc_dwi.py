@@ -594,6 +594,8 @@ def create_main_workflow():
 
     else:
 
+        preprocess_dwi_pipe = create_preprocess_dwi_pipe()
+
         main_workflow.connect(datasource, 'dwi_AP',  preprocess_dwi_pipe, 'inputnode.dwi_AP')
         main_workflow.connect(datasource, 'bval_AP', preprocess_dwi_pipe, 'inputnode.bval_AP')
         main_workflow.connect(datasource, 'bvec_AP', preprocess_dwi_pipe, 'inputnode.bvec_AP')
