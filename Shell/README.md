@@ -39,3 +39,4 @@ Les étapes de pré-traitement placées dans mon script:
 - correction du biais( *mrtrix dwibiascorrect, idealement utiliser avec l'agorithme 'ants'*)  
 - smoothing (*FSL fslmaths*)
 
+Questions, commentaires : julien.sein@univ-amu.fr
