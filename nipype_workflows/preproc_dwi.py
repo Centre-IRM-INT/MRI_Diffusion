@@ -320,10 +320,6 @@ def create_topup_pipe(wf_name="topup_pipe"):
 
     inputnode = pe.Node(niu.IdentityInterface(
         fields=['dwi_AP','bval_AP_new_file','bvec_AP', 'dwi_PA','bval_PA_new_file','bvec_PA','acq_param_file']),
-
-        #fields=['dwi_AP', 'json_AP',
-        #        'dwi_PA','bval_PA','bvec_PA', 'json_PA']),
-
         name='inputnode')
 
     # dwi_extract
@@ -402,7 +398,7 @@ def create_topup_pipe(wf_name="topup_pipe"):
 
 
 
-def create_eddy_pipe(wf_name="eddy_pipe"):
+def create_eddy_pipe(wf_name="eddy_pipe", eddy_method = "lsr"):
 
     eddy_pipe = pe.Workflow(name=wf_name)
 
@@ -443,7 +439,7 @@ def create_eddy_pipe(wf_name="eddy_pipe"):
     eddy.inputs.is_shelled = True
 
     eddy.inputs.dont_peas=True
-    eddy.inputs.method="lsr"
+    eddy.inputs.method=eddy_method
     eddy.inputs.fep=True
 
     eddy_pipe.connect(merge_data_AP_PA, 'merged_file', eddy, 'in_file')
@@ -636,7 +632,7 @@ def create_main_workflow():
 
     # eddy_pipe
     print("eddy_pipe")
-    eddy_pipe = create_eddy_pipe()
+    eddy_pipe = create_eddy_pipe(eddy_method=eddy_method)
 
     main_workflow.connect(datasource, 'bvec_AP', eddy_pipe, 'inputnode.bvec_AP')
     main_workflow.connect(datasource, 'bvec_PA', eddy_pipe, 'inputnode.bvec_PA')
