@@ -19,7 +19,7 @@ from nipype.interfaces.spm import utils as spmu
 
 from nodes.prepare import FslOrient
 
-from nodes.function import read_json_info, create_acq_files, create_mean_acq_files, return_b0_even, split_half_text
+from nodes.function import read_json_info, create_acq_files, create_mean_acq_files, return_b0_even
 from utils.util_func import paste_2files, create_tuple_of_two_elem, create_list_of_two_elem
 
 
@@ -313,7 +313,6 @@ def create_mean_topup_pipe(wf_name="topup_pipe"):
     return topup_pipe
 
 
-
 def create_topup_pipe(wf_name="topup_pipe"):
 
     topup_pipe = pe.Workflow(name=wf_name)
@@ -396,8 +395,6 @@ def create_topup_pipe(wf_name="topup_pipe"):
 
     return topup_pipe
 
-
-
 def create_eddy_pipe(wf_name="eddy_pipe", eddy_method = "lsr"):
 
     eddy_pipe = pe.Workflow(name=wf_name)
@@ -439,7 +436,9 @@ def create_eddy_pipe(wf_name="eddy_pipe", eddy_method = "lsr"):
     eddy.inputs.is_shelled = True
 
     eddy.inputs.dont_peas=True
+    
     eddy.inputs.method=eddy_method
+    
     eddy.inputs.fep=True
 
     eddy_pipe.connect(merge_data_AP_PA, 'merged_file', eddy, 'in_file')
@@ -523,10 +522,8 @@ def create_post_eddy_pipe(wf_name="post_eddy_pipe", eddy_method="lsr"):
     elif eddy_method=="jac":
         dwi_mask = pe.Node(interface=umrt.BrainMask(), name="dwi_mask")
         dwi_mask.inputs.out_file = "brainmask.nii.gz"
-
         post_eddy_pipe.connect(tuple_rotated_bvec, 'tuple_elem', dwi_mask, 'grad_fsl')
         post_eddy_pipe.connect(abs_eddy, 'out_file' , dwi_mask, 'in_file')
-
 
         # dwi_bias_correct
         dwi_bias_correct = pe.Node(interface=mrt.DWIBiasCorrect(),
@@ -536,6 +533,7 @@ def create_post_eddy_pipe(wf_name="post_eddy_pipe", eddy_method="lsr"):
         post_eddy_pipe.connect(tuple_rotated_bvec, 'tuple_elem', dwi_bias_correct, 'grad_fsl')
         post_eddy_pipe.connect(abs_eddy, 'out_file', dwi_bias_correct, 'in_file')
         post_eddy_pipe.connect(dwi_mask, 'out_file', dwi_bias_correct, 'in_mask')
+
 
     # final dti fit
     final_dtifit = pe.Node(interface=dti.DTIFit(), name="final_dtifit")
