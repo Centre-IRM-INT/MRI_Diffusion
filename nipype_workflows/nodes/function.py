@@ -176,3 +176,26 @@ def return_b0_even(fmap_AP_PA_file):
         b02b0_file = "b02b0.cnf"
 
     return b02b0_file
+
+def split_half_text(orig_txt):
+
+    import os
+    from nipype.utils.filemanip import split_filename as split_f
+    
+    
+    assert os.path.exists(orig_txt), "Error, {} does not exists".format(orig_txt)
+    
+    fpath, fname, ext = split_f(orig_txt)
+    
+    splitted_txt = os.path.abspath("splitted_" + fname + ext)
+    
+    with open(orig_txt) as f,  open(splitted_txt, "w") as g:
+        for line in f.readlines():
+            splitted_line = line.strip().split()
+            assert len(splitted_line)%2==0, "Error, line {} have an even number ({}) of elements".format(splitted_line, len(splitted_line))
+            half_length = int(len(splitted_line)/2)
+            g.write(" ".join(splitted_line[:half_length]) + "\n")
+
+    return splitted_txt
+
+
