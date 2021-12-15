@@ -19,7 +19,7 @@ from nipype.interfaces.spm import utils as spmu
 
 from nodes.prepare import FslOrient
 
-from nodes.function import read_json_info, create_acq_files, create_mean_acq_files, return_b0_even
+from nodes.function import read_json_info, create_acq_files, create_mean_acq_files, return_b0_even, split_half_text
 from utils.util_func import paste_2files, create_tuple_of_two_elem, create_list_of_two_elem
 
 
@@ -456,12 +456,12 @@ def create_eddy_pipe(wf_name="eddy_pipe", eddy_method = "lsr"):
 
     return eddy_pipe
 
-def create_post_eddy_pipe(wf_name="post_eddy_pipe"):
+def create_post_eddy_pipe(wf_name="post_eddy_pipe", eddy_method="lsr"):
 
     post_eddy_pipe = pe.Workflow(name=wf_name)
 
     inputnode = pe.Node(niu.IdentityInterface(
-        fields=['dwi_corrected','paste_bval','rotated_bvecs']),
+        fields=['dwi_corrected','bvals','rotated_bvecs']),
 
         name='inputnode')
 
@@ -483,38 +483,59 @@ def create_post_eddy_pipe(wf_name="post_eddy_pipe"):
         name="tuple_rotated_bvec")
 
     post_eddy_pipe.connect(inputnode, 'rotated_bvecs', tuple_rotated_bvec, 'elem1')
-    post_eddy_pipe.connect(inputnode, 'paste_bval', tuple_rotated_bvec, 'elem2')
+    post_eddy_pipe.connect(inputnode, 'bvals', tuple_rotated_bvec, 'elem2')
 
 
-    # concat_abs_eddy
-    # list_abs_eddy
-    list_abs_eddy = pe.Node(interface=niu.Function(input_names = ["elem1", "elem2"], output_names = ["list_elem"], function = create_list_of_two_elem), name="list_abs_eddy")
+    
+    # the input of dwi_mask is dependent on the eddy_method
+    # - if 'lsr', the abs_eddyneeds to be duplicated 
+    # - if 'jac', the input is directly the abs_eddy
+    if eddy_method=="lsr":
+            
+        # list_abs_eddy
+        list_abs_eddy = pe.Node(interface=niu.Function(input_names = ["elem1", "elem2"], output_names = ["list_elem"], function = create_list_of_two_elem), name="list_abs_eddy")
 
-    post_eddy_pipe.connect(abs_eddy, 'out_file', list_abs_eddy, 'elem1')
-    post_eddy_pipe.connect(abs_eddy, 'out_file', list_abs_eddy, 'elem2')
+        post_eddy_pipe.connect(abs_eddy, 'out_file', list_abs_eddy, 'elem1')
+        post_eddy_pipe.connect(abs_eddy, 'out_file', list_abs_eddy, 'elem2')
 
-    # merge_abs_eddy
-    merge_abs_eddy =  pe.Node(interface=fsl.Merge(), name="merge_abs_eddy")
-    merge_abs_eddy.inputs.dimension = "t"
+        # merge_abs_eddy
+        merge_abs_eddy =  pe.Node(interface=fsl.Merge(), name="merge_abs_eddy")
+        merge_abs_eddy.inputs.dimension = "t"
 
-    post_eddy_pipe.connect(list_abs_eddy, 'list_elem', merge_abs_eddy, 'in_files')
+        post_eddy_pipe.connect(list_abs_eddy, 'list_elem', merge_abs_eddy, 'in_files')
 
-    # dwi_mask
-    dwi_mask = pe.Node(interface=umrt.BrainMask(), name="dwi_mask")
-    dwi_mask.inputs.out_file = "brainmask.nii.gz"
+        # dwi_mask
+        dwi_mask = pe.Node(interface=umrt.BrainMask(), name="dwi_mask")
+        dwi_mask.inputs.out_file = "brainmask.nii.gz"
 
-    post_eddy_pipe.connect(tuple_rotated_bvec, 'tuple_elem', dwi_mask, 'grad_fsl')
-    post_eddy_pipe.connect(merge_abs_eddy, 'merged_file', dwi_mask, 'in_file')
+        post_eddy_pipe.connect(tuple_rotated_bvec, 'tuple_elem', dwi_mask, 'grad_fsl')
+        post_eddy_pipe.connect(merge_abs_eddy, 'merged_file', dwi_mask, 'in_file')
+
+        # dwi_bias_correct
+        dwi_bias_correct = pe.Node(interface=mrt.DWIBiasCorrect(),
+                                   name="dwi_bias_correct")
+        dwi_bias_correct.inputs.use_ants = True
+
+        post_eddy_pipe.connect(tuple_rotated_bvec, 'tuple_elem', dwi_bias_correct, 'grad_fsl')
+        post_eddy_pipe.connect(merge_abs_eddy, 'merged_file', dwi_bias_correct, 'in_file')
+        post_eddy_pipe.connect(dwi_mask, 'out_file', dwi_bias_correct, 'in_mask')
+
+    elif eddy_method=="jac":
+        dwi_mask = pe.Node(interface=umrt.BrainMask(), name="dwi_mask")
+        dwi_mask.inputs.out_file = "brainmask.nii.gz"
+
+        post_eddy_pipe.connect(tuple_rotated_bvec, 'tuple_elem', dwi_mask, 'grad_fsl')
+        post_eddy_pipe.connect(abs_eddy, 'out_file' , dwi_mask, 'in_file')
 
 
-    # dwi_bias_correct
-    dwi_bias_correct = pe.Node(interface=mrt.DWIBiasCorrect(),
-                               name="dwi_bias_correct")
-    dwi_bias_correct.inputs.use_ants = True
+        # dwi_bias_correct
+        dwi_bias_correct = pe.Node(interface=mrt.DWIBiasCorrect(),
+                                   name="dwi_bias_correct")
+        dwi_bias_correct.inputs.use_ants = True
 
-    post_eddy_pipe.connect(tuple_rotated_bvec, 'tuple_elem', dwi_bias_correct, 'grad_fsl')
-    post_eddy_pipe.connect(merge_abs_eddy, 'merged_file', dwi_bias_correct, 'in_file')
-    post_eddy_pipe.connect(dwi_mask, 'out_file', dwi_bias_correct, 'in_mask')
+        post_eddy_pipe.connect(tuple_rotated_bvec, 'tuple_elem', dwi_bias_correct, 'grad_fsl')
+        post_eddy_pipe.connect(abs_eddy, 'out_file', dwi_bias_correct, 'in_file')
+        post_eddy_pipe.connect(dwi_mask, 'out_file', dwi_bias_correct, 'in_mask')
 
     # final dti fit
     final_dtifit = pe.Node(interface=dti.DTIFit(), name="final_dtifit")
@@ -522,7 +543,7 @@ def create_post_eddy_pipe(wf_name="post_eddy_pipe"):
     post_eddy_pipe.connect(dwi_bias_correct, 'out_file', final_dtifit, 'dwi')
     post_eddy_pipe.connect(dwi_mask, 'out_file', final_dtifit, 'mask')
     post_eddy_pipe.connect(inputnode, 'rotated_bvecs', final_dtifit, 'bvecs')
-    post_eddy_pipe.connect(inputnode, 'paste_bval', final_dtifit, 'bvals')
+    post_eddy_pipe.connect(inputnode, 'bvals', final_dtifit, 'bvals')
 
     return post_eddy_pipe
 
@@ -651,10 +672,10 @@ def create_main_workflow():
 
     # post_eddy_pipe
     print("post_eddy_pipe")
-    post_eddy_pipe = create_post_eddy_pipe()
+    post_eddy_pipe = create_post_eddy_pipe(eddy_method=eddy_method)
 
     main_workflow.connect(eddy_pipe, 'eddy.out_corrected', post_eddy_pipe, 'inputnode.dwi_corrected')
-    main_workflow.connect(eddy_pipe, 'paste_bval.paste_file', post_eddy_pipe, 'inputnode.paste_bval')
+    main_workflow.connect(eddy_pipe, 'paste_bval.paste_file', post_eddy_pipe, 'inputnode.bvals')
     main_workflow.connect(eddy_pipe, 'eddy.out_rotated_bvecs', post_eddy_pipe, 'inputnode.rotated_bvecs')
 
     return main_workflow
